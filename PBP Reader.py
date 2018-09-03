@@ -10,23 +10,15 @@ import networkx as nx
 import random
 import numpy as np
 
-# Common path functions:
-
-# Return the path between two agents, resulting in a list of neighbor nodes
-
-path = nx.dijkstra_path
-
-#Returns the distance between two agents in a graph, resulting in an int of E
-path_d = nx.dijkstra_path_length
-
-#Returns the shortest path between two agents in a graph, resulting in a list
-s_path = nx.shortest_path
+# Download the example CSV file and make sure it's in your Downloads folder. 
+# Otherwise, you can rename the input and filename below to correspond to where your CSV of Play-By-Play data is stored.
 
 username = input('What is your username? ')
 filename = '/Users/{username}/Downloads/GSW at HOU WCF - NBA PBP.csv'.format(username=username)
 csv_df = pd.read_csv(filename, delimiter=',')
 
-test_list = []
+# Changes IN/OUT values from CSV to correspond to the player's name.
+empty_list = []
 for i in range(len(csv_df)):
     row = csv_df.iloc[i]
     col = list(csv_df)
@@ -38,11 +30,11 @@ for i in range(len(csv_df)):
             lineup.append(str(key))
         if key == "Lineup Score":
             lineup.append(int(data))
-            test_list.append(lineup)
-
+            empty_list.append(lineup)
+player_list = empty_list
 
 team_performance = []
-for x in test_list:
+for x in player_list:
     matchup = x
     team_performance.append(matchup)
     
