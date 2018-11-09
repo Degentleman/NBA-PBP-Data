@@ -9,8 +9,6 @@ import NBAPBPReader as Reader
 import NBAadvsyn as NSA
 import pandas as pd
 
-NBA_Legend = pd.read_csv('NBA_Player_DB.csv', delimiter = ',')    
-known_players = NBA_Legend[['PlayerID','Player']]
 game_id = '0021800164'
 season = '2018'
 
