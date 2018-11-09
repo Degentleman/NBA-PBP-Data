@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Oct 24 19:21:23 2018
+Created on Fri Apr 20 16:20:00 2018
 
 @author: Degentleman
 """
 import NBAadvsyn as NSA
 
-def NBAmodel(lineup_df, team_Ai, team_Aj, iterations):
+def NBAmodel(lineup_df, team_Ai, team_Aj, iteration_limit):
 
     D_Train, player_value = NSA.LearnCap(lineup_df)
     G_Alpha, alpha_player_value = NSA.SimGraph(D_Train, lineup_df)
     alpha_performance, a_predictions_df = NSA.MeasureError(G_Alpha, lineup_df)
     trials = 0
     stop_count = 0
-    iterations = iterations
     alpha_spreads = []
     beta_spreads = []
     explored_structures = []
-    while stop_count < iterations:
+    while stop_count < iteration_limit:
         
         if alpha_performance > 0:
             
