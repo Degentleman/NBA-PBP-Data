@@ -8,9 +8,11 @@ Created on Fri Apr 20 16:20:00 2018
 import NBAPBPReader as Reader
 import NBAadvsyn as NSA
 import pandas as pd
+from RunModel import NBAmodel
 
 game_id = '0021800164'
 season = '2018'
+iteration_limit = 100
 
 pbp_df, pbp_file_name, home_team, away_team = Reader.PBP_Read(game_id, season)
 Ai_df, Aj_df, df_cols = Reader.PBP_team_sort(pbp_df, home_team, away_team)
@@ -21,3 +23,4 @@ pbp_perf = final_pbp[(final_pbp.Performance != '') & (final_pbp.etype != '8')].r
 lineup_df = NSA.lineups(pbp_perf)
 team_Ai, team_Aj = NSA.team_sort(lineup_df)
 box_score, NBA = Reader.BoxScore(pbp_df, game_id, home_team, away_team)
+G_Alpha, predictions_df, agent_capability, alpha_spreads, beta_spreads = NBAmodel(lineup_df, team_Ai, team_Aj, iteration_limit)
