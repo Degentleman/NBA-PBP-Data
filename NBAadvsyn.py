@@ -1,105 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Sep  1 15:01:55 2018
+Created on Fri Apr 20 16:20:00 2018
 @author: Degentleman
 """
-
 import pandas as pd
 import networkx as nx
 import numpy as np
 from itertools import combinations
 import statsmodels.api as sm
 
-# Common path functions:
-
-path = nx.dijkstra_path
-
-#Returns the distance between two agents in a graph, resulting in an int of E
-path_d = nx.dijkstra_path_length
-
-# Returns the shortest path between two agents in a graph, resulting in a list
-
-s_path = nx.shortest_path
-
-def Phi(d):
-    return(1/float(d))
-    
-def bfs_cc(NBA):
-    
-    # Visited Nodes
-    explored = []
-    
-    # Nodes to be checked
-    queue = list(NBA.nodes)
-    G_prime = nx.Graph(NBA)
-    np.random.shuffle(queue)
-    
-    # Loop until there are no remaining nodes to be checked
-    while G_prime.size() < len(list(NBA.nodes))-1:
-        node = queue.pop(0)
-        if node not in explored:
-            explored.append(node)
-            if len(queue)>0:
-                neighbor = queue[0]
-                if G_prime.has_edge(node,neighbor) == False:
-                    weight = 1
-                    G_prime.add_edge(node,neighbor,weight=weight)
-                elif G_prime.has_edge(node,neighbor) == True:
-                    continue
-    return (G_prime)
-
-# Create a Blank Unweighted Graph
-
-def LearnCap(lineup_df):
-    
-    # Learn the mean value of each player from the lineup DataFrame
-    
-    value_list = []
-    
-    for i in range(len(lineup_df)):
-        row = lineup_df.iloc[i]
-        team_Ai_lineup = list(row)[0:5]
-        team_Aj_lineup = list(row)[5:10]
-        for player_i in team_Ai_lineup:
-            i_performance = float(str(list(row)[10]))
-            value_list.append([player_i,i_performance])
-        for player_j in team_Aj_lineup:
-            j_performance = float(str(-list(row)[10]))
-            value_list.append([player_j,j_performance])
-    value_df = pd.DataFrame(data=value_list, columns=['Player','Performance'])
-    
-    Agents = list(np.unique(value_df['Player']))
-    
-    final_value = []
-    
-    for x in Agents:
-        player_name = str(x)
-        player_in = value_df[(value_df['Player'] == player_name)]
-        mean_performance = round(np.mean(player_in['Performance']),3)
-        var_performance = round(np.var(player_in['Performance']),3)
-        final_entry = [player_name,mean_performance,var_performance]
-        final_value.append(final_entry)
-    
-    final_value_df = pd.DataFrame(data=final_value,columns=['Player','mu','var' ])
-    
-    value = final_value_df
-    
-    # Add training data as nodes to an Unweighted Graph
-    
-    D_Train = nx.Graph()
-    
-    # Add the training data to the NBA graph as player nodes
-    
-    for i in range(len(value)):
-        row = value.iloc[i]
-        name = row['Player']
-        player_mu = row['mu']
-        player_var = row['var']
-        D_Train.add_node(name,mu=player_mu,var=player_var)
-    
-    return(D_Train,value)
-    
+# Create a DataFrame of lineups for each team using the PBP_Perf file in the Play-by-Play Reader
 def lineups(DataFrame):
     
     csv_lineups = []
@@ -150,6 +61,94 @@ def team_sort(lineup_df):
     team_Aj = sorted(team_Aj)
     return(team_Ai,team_Aj)
 
+# Here are some common functions for the Adversarial Synergy Graph.
+
+# Find paths between agents
+path = nx.dijkstra_path
+
+#Find the shortest path between two agents in the graph
+path_d = nx.dijkstra_path_length
+
+# Returns a list of shortest paths between agents in the graph.
+s_path = nx.shortest_path
+
+# Compatibility function
+def Phi(d):
+    return(1/float(d))
+
+#Search through nodes and create unweighted edges.
+def bfs_cc(NBA):
+    
+    # Visited Nodes
+    explored = []
+    # Nodes to be checked
+    queue = list(NBA.nodes)
+    G_prime = nx.Graph(NBA)
+    np.random.shuffle(queue)
+    
+    # Loop until there are no remaining nodes to be checked
+    while G_prime.size() < len(list(NBA.nodes))-1:
+        node = queue.pop(0)
+        if node not in explored:
+            explored.append(node)
+            if len(queue)>0:
+                neighbor = queue[0]
+                if G_prime.has_edge(node,neighbor) == False:
+                    weight = 1
+                    G_prime.add_edge(node,neighbor,weight=weight)
+                elif G_prime.has_edge(node,neighbor) == True:
+                    continue
+    return (G_prime)
+
+# Create a Blank Unweighted Graph
+def LearnCap(lineup_df):
+    
+    # Learn the mean value of each player from the lineup DataFrame
+    value_list = []
+    
+    for i in range(len(lineup_df)):
+        row = lineup_df.iloc[i]
+        team_Ai_lineup = list(row)[0:5]
+        team_Aj_lineup = list(row)[5:10]
+        for player_i in team_Ai_lineup:
+            i_performance = float(str(list(row)[10]))
+            value_list.append([player_i,i_performance])
+        for player_j in team_Aj_lineup:
+            j_performance = float(str(-list(row)[10]))
+            value_list.append([player_j,j_performance])
+    value_df = pd.DataFrame(data=value_list, columns=['Player','Performance'])
+    
+    Agents = list(np.unique(value_df['Player']))
+    
+    final_value = []
+    
+    for x in Agents:
+        player_name = str(x)
+        player_in = value_df[(value_df['Player'] == player_name)]
+        mean_performance = round(np.mean(player_in['Performance']),3)
+        var_performance = round(np.var(player_in['Performance']),3)
+        final_entry = [player_name,mean_performance,var_performance]
+        final_value.append(final_entry)
+    
+    final_value_df = pd.DataFrame(data=final_value,columns=['Player','mu','var' ])
+    
+    value = final_value_df
+    
+    # Add training data as nodes to an Unweighted Graph
+    D_Train = nx.Graph()
+    
+    # Add the training data to the NBA graph as player nodes
+    for i in range(len(value)):
+        row = value.iloc[i]
+        name = row['Player']
+        player_mu = row['mu']
+        player_var = row['var']
+        D_Train.add_node(name,mu=player_mu,var=player_var)
+    
+    return(D_Train,value)
+
+
+# Regress the compatability of each agent to the performance outcome in the Lineup DataFrame to solve for agent capability.
 def Cap_Matrix(G_Alpha,lineup_df):  
     
     Agents = list(G_Alpha)
@@ -213,6 +212,7 @@ def Cap_Matrix(G_Alpha,lineup_df):
     
     return(A_M1)
 
+# Create a graph from the Lineup DataFrame to use as training data.
 def SimGraph(D_Train,lineup_df):
     
     Agents = list(D_Train)
@@ -240,7 +240,8 @@ def SimGraph(D_Train,lineup_df):
     Agent_Cap_DF = pd.DataFrame(data= Agent_Capabilities, columns=['Player One','G_Cap'])
     
     return(G_Alpha, Agent_Cap_DF)
-    
+
+# Find the synergy between agents who are on the same team.
 def Synergy(G_Alpha,team_Ai_lineup,team_Aj_lineup):
     if list(G_Alpha.nodes(data='G_Cap'))[0][1] is None:
         return(print('G_Cap data missing')) 
@@ -268,7 +269,7 @@ def Synergy(G_Alpha,team_Ai_lineup,team_Aj_lineup):
     syn_df = pd.DataFrame(agent_pairs[1:],columns=['Team','Player One','Player Two','Dist','Syn'])
     return(syn_df)
     
-    
+# Find the Adversarial Synergy between agents on opposing teams.
 def A_Synergy(G_Alpha,team_Ai_lineup,team_Aj_lineup):
     if list(G_Alpha.nodes(data='G_Cap'))[0][1] is None:
         return(print('G_Cap data missing')) 
@@ -294,6 +295,7 @@ def A_Synergy(G_Alpha,team_Ai_lineup,team_Aj_lineup):
     adv_syn_df = pd.DataFrame(agent_pairs[1:],columns=['Team','i','j','Dist','Ai_Aj_Adv'])
     return(adv_syn_df)
 
+# Measure the error of the predictions from the model.
 def MeasureError(G_Alpha,lineup_df):
     model_error = []
     predictions = []
@@ -318,6 +320,8 @@ def MeasureError(G_Alpha,lineup_df):
     predictions_df = pd.concat([lineup_df,Alpha_model_predictions,Alpha_model_error],axis=1)
     return(round(Alpha_performance,3),predictions_df)
 
+# Project the Performance, or in the case of NBA the "spread"
+
 def ProjSpread(G_Alpha,team_Ai_lineup,team_Aj_lineup):
     # Using the A_Synergy and Synergy module in the main script
     
@@ -337,6 +341,8 @@ def ProjSpread(G_Alpha,team_Ai_lineup,team_Aj_lineup):
     
     return Adv_Syn_Spread
 
+
+# Regress the performance of each lineup to the pairwise distance between agents.
 def LineupSyn(G_Alpha,lineup_df):  
     
     Ai_lineups = []
@@ -421,7 +427,8 @@ def LineupSyn(G_Alpha,lineup_df):
     Ai_Aj_Adv = np.sum(Ai_matrix_df['Ai Aj Compat'])
     R_Spread = round(((Ai_Syn*Ai_Syn_coef)+(Aj_Syn*Aj_Syn_coef)+(Ai_Aj_Adv*Ai_Aj_Adv_Syn_coef)),2)
     return(Ai_matrix_df, Ai_Syn_coef, Aj_Syn_coef, Ai_Aj_Adv_Syn_coef, R_Spread)
-     
+
+# Evaluate the mean synergy for each agent.
 def AlphaBPM(syn_df,Player):
     player_name = str(Player)
     player_df = syn_df[(syn_df['Player One'] == player_name) | (syn_df['Player Two'] == player_name)]
