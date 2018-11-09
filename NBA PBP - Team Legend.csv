@@ -1,0 +1,31 @@
+Team,Division,Code,TeamID
+Boston Celtics,Atlantic,BOS,1610612738
+Brooklyn Nets,Atlantic,BKN,1610612751
+New York Knicks,Atlantic,NYK,1610612752
+Philadelphia 76ers,Atlantic,PHI,1610612755
+Toronto Raptors,Atlantic,TOR,1610612761
+Chicago Bulls,Central,CHI,1610612741
+Cleveland Cavaliers,Central,CLE,1610612739
+Detroit Pistons,Central,DET,1610612765
+Indiana Pacers,Central,IND,1610612754
+Milwaukee Bucks,Central,MIL,1610612749
+Denver Nuggets,Northwest,DEN,1610612743
+Minnesota Timberwolves,Northwest,MIN,1610612750
+Oklahoma City Thunder,Northwest,OKC,1610612760
+Portland Trail Blazers,Northwest,POR,1610612757
+Utah Jazz,Northwest,UTA,1610612762
+Golden State Warriors,Pacific,GSW,1610612744
+LA Clippers,Pacific,LAC,1610612746
+Los Angeles Lakers,Pacific,LAL,1610612747
+Phoenix Suns,Pacific,PHX,1610612756
+Sacramento Kings,Pacific,SAC,1610612758
+Atlanta Hawks,Southeast,ATL,1610612737
+Charlotte Hornets,Southeast,CHA,1610612766
+Miami Heat,Southeast,MIA,1610612748
+Orlando Magic,Southeast,ORL,1610612753
+Washington Wizards,Southeast,WAS,1610612764
+Dallas Mavericks,Southwest,DAL,1610612742
+Houston Rockets,Southwest,HOU,1610612745
+Memhpis Grizzlies,Southwest,MEM,1610612763
+New Orleans Pelicans,Southwest,NOP,1610612740
+San Antonio Spurs,Southwest,SAS,1610612759
