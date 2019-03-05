@@ -14,7 +14,7 @@ game_id = '0021800164'
 season = '2018'
 iteration_limit = 100
 
-pbp_df, pbp_file_name, home_team, away_team = Reader.PBP_Read(game_id, season)
+pbp_df, pbpsumdf, pbp_file_name, home_team, away_team = Reader.PBP_Read(game_id, season)
 Ai_df, Aj_df, df_cols = Reader.PBP_team_sort(pbp_df, home_team, away_team)
 in_out_df, starters, bench = Reader.StatusCheck(pbp_df, df_cols, home_team, away_team)
 new_pbp_df = pd.concat([pbp_df,in_out_df], axis=1)
