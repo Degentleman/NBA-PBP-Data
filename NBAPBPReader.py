@@ -9,10 +9,10 @@ import requests
 import json
 import pandas as pd
 import numpy as np
-from scipy import stats
-import networkx as nx
 
-NBA_Legend = pd.read_csv('NBA_Player_DB.csv', delimiter = ',')
+NBA_Legend = pd.read_csv('/Users/devinpower-bearden/AnacondaProjects/NBA/Synergy Project Files/NBA Player DF - 2019.csv', delimiter = ',')   
+
+Team_Legend = pd.read_csv('NBA PBP - Team Legend.csv', delimiter = ',')
     
 keys = list(NBA_Legend.PlayerID)
 
@@ -73,8 +73,14 @@ def PBP_Read(game_id,season):
     for i in range(len(pbp)):
         row = pbp.iloc[i]
         if row.etype == '8':
-            subbed_out = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.PlayerID))]['Player'])[0]
-            subbed_in = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.epid))]['Player'])[0]
+            if int(row.PlayerID) in keys:
+                subbed_out = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.PlayerID))]['Player'])[0]
+            else:
+                subbed_out = row.PlayerID
+            if int(row.epid) in keys:
+                subbed_in = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.epid))]['Player'])[0]
+            else:
+                subbed_in = row.epid
             player_one.append(subbed_in)
             player_two.append(subbed_out)
         elif row.etype in etype_list and row.PlayerID != '0' and int(row.PlayerID) in keys:
@@ -101,10 +107,22 @@ def PBP_Read(game_id,season):
     player_two = pd.Series(data=player_two,name='Player Two')
     
     pbp_df = pd.concat([pbp,player_one,player_two],axis=1)
-    
-    pbp_df.to_csv(filename)
-    
-    return (pbp_df, filename, home_team, away_team)
+    shots_made = len(pbp_df[(pbp_df.etype == '1')])
+    shots_missed = len(pbp_df[(pbp_df.etype == '2')])
+    fts_shot = len(pbp_df[(pbp_df.etype == '3')])
+    fts_made = len(pbp_df[(pbp_df.etype == '3') & (pbp_df.opt1 == '1')])
+    rebounds = len(pbp_df[(pbp_df.etype == '4') & (pbp_df.PlayerID != '0')])
+    turnovers = len(pbp_df[(pbp_df.etype == '5')])
+    fouls = len(pbp_df[(pbp_df.etype == '6')])
+    substitutions = len(pbp_df[(pbp_df.etype == '8')])
+    timeouts = len(pbp_df[(pbp_df.etype == '9')])
+    game_summary = pd.Series([shots_made,shots_missed,fts_made, fts_shot, 
+                              rebounds, turnovers, fouls, 
+                              substitutions, timeouts]).values.reshape(1,9)
+    sum_columns = ['Shots Made', 'Shots Missed', 'FTs', 'FTAs',
+                   'Rebounds', 'Turnovers', 'Fouls', 'Subs', 'Timeouts']
+    pbpsumdf = pd.DataFrame(data=game_summary, columns=sum_columns)
+    return (pbp_df, pbpsumdf, filename, home_team, away_team)
 
 def PBP_team_sort(pbp_df, home_team, away_team):
 
@@ -115,16 +133,47 @@ def PBP_team_sort(pbp_df, home_team, away_team):
     Ai_df = pd.DataFrame()
     Aj_df = pd.DataFrame()
     for player in player_list:
-        team = list(NBA_Legend[(NBA_Legend.Player == player)].Team)[0]
-        p_id = list(NBA_Legend[(NBA_Legend.Player == player)].PlayerID)[0]
-        if team == home_team:
-            entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
+        if player in list(NBA_Legend.Player):
+            team = list(NBA_Legend[(NBA_Legend.Player == player)].Team)[0]
+            p_id = list(NBA_Legend[(NBA_Legend.Player == player)].PlayerID)[0]
+            if team != home_team and team != away_team:
+                print('According to your database, '+ player + ' is on '+team+"'s roster,")
+                pbp_home = list(pbp_df)[12]
+                pbp_away = list(pbp_df)[13]
+                team = input('Which team is '+player+' playing for in this game: '+pbp_home+' or '+pbp_away+'? ')
+            if team == home_team:
+                entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
+                entry_df = pd.DataFrame(data=entry,columns=['Team','Player','PlayerID'])
+                Ai_df = pd.concat([Ai_df,entry_df],axis=0,ignore_index=True)
+            if team == away_team:
+                entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
+                entry_df = pd.DataFrame(data=entry, columns=['Team','Player','PlayerID'])
+                Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
+        if player not in list(NBA_Legend.Player):
+            print('NBA Player #'+player+' is missing from the team database.')
+            if player in list(pbp_df[(pbp_df.etype == '8')]['Player One']):
+                p_id = int(player)
+                p_index = list(pbp_df[(pbp_df.etype == '8')]['Player One']).index(player)
+                sub_row = pbp_df[(pbp_df.etype == '8')].iloc[p_index]
+                team = sub_row.Description[1:4]
+            elif player in list(pbp_df[(pbp_df.etype == '8')]['Player Two']):
+                p_id = int(player)
+                p_index = list(pbp_df[(pbp_df.etype == '8')]['Player Two']).index(player)
+                sub_row = pbp_df[(pbp_df.etype == '8')].iloc[p_index]
+                team = sub_row.Description[1:4]
+            else:
+                print('NBA Player #'+player+' is missing from the team database.')
+                pbp_home = list(pbp_df)[12]
+                pbp_away = list(pbp_df)[13]
+                team = input('Which team are they on? '+pbp_home+' or '+pbp_away+' ')
+                p_id = int(player)
+            player_name = input('Please input the correct name for this player ')
+            entry = pd.Series(data=[team, player_name,p_id]).values.reshape(1,3)
             entry_df = pd.DataFrame(data=entry,columns=['Team','Player','PlayerID'])
-            Ai_df = pd.concat([Ai_df,entry_df],axis=0,ignore_index=True)
-        if team == away_team:
-            entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
-            entry_df = pd.DataFrame(data=entry, columns=['Team','Player','PlayerID'])
-            Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
+            if team == home_team:    
+                Ai_df = pd.concat([Ai_df,entry_df],axis=0,ignore_index=True)
+            if team == away_team:    
+                Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
                 
     Ai_df = Ai_df.set_index('Team')
     Aj_df = Aj_df.set_index('Team')
@@ -132,19 +181,19 @@ def PBP_team_sort(pbp_df, home_team, away_team):
     players_df = pd.concat([Ai_df,Aj_df], axis=0)
     
     home_cols = sorted(list(players_df.loc[home_team]['Player']))
-    
     away_cols = sorted(list(players_df.loc[away_team]['Player']))
     
     df_cols = home_cols+away_cols
     
-    return (Ai_df, Aj_df,df_cols)
+    return (players_df, df_cols)
 
-def StatusCheck(pbp_df, df_cols, home_team, away_team):
+def StatusCheck(pbp_df, df_cols, players_df):
     in_out_df = pd.DataFrame()
     starters = []
     bench = []
     for player in df_cols:
         entry = []
+        p_id = players_df[(players_df['Player'] == player)].PlayerID[0]
         t_sub_count = 0
         p_out_count = 0
         p_in_count = 0
@@ -154,10 +203,13 @@ def StatusCheck(pbp_df, df_cols, home_team, away_team):
             if row.Description == 'Start Period':
                 status = "Unknown"
                 quarter += 1
-            if row.etype != '8' and (player == row['Player One']) | (player == row['Player Two']):
+            if row.etype != '8' and str(p_id) == row.PlayerID:
+                status = "In"
+            if row.etype != '8' and str(p_id) == row.epid: 
                 status = "In"
             if row.etype != '8' and len(row.opid) > 0:
-                player_found = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.opid))].Player)[0]
+                player_index = list(players_df.PlayerID).index(int(row.opid))
+                player_found = players_df.iloc[player_index].Player
                 if player == player_found:
                     status = "In"
             if row.etype == '8':
@@ -256,7 +308,7 @@ def SearchCourt(pbp_df, player, entry):
                     for i in range(index_one,index_one+n_end_period+1):
                         entry[i] = "Out"
             if (is_in_val) & (is_out_val == False) and in_row.etype != '8':
-                if in_at < n_end_period:
+                if 'End Period' in n_events and in_at < n_end_period:
                     for i in range(index_one,index_one+in_at):
                         entry[i] = "In"
                 if in_at > n_end_period:
@@ -275,15 +327,44 @@ def SearchCourt(pbp_df, player, entry):
         if loop_count > len(entry)/2:
             break
     return(entry)
+
+def CalcPoss(pbp_df, team_id):
+    team_fgas = len( pbp_df[(pbp_df.TeamID == str(team_id)) & ((pbp_df.etype == '1') | (pbp_df.etype == '2'))])
+    team_fgs = len( pbp_df[(pbp_df.TeamID == str(team_id)) & (pbp_df.etype == '2')])
+    team_3pts = len(pbp_df[(pbp_df.TeamID == str(team_id)) & (pbp_df.opt1 == '3') & (pbp_df.etype == '1')])
+    team_turnovers = len(pbp_df[(pbp_df.etype == '5') & (pbp_df.TeamID == str(team_id))])
+    team_fts = int(len(pbp_df[(pbp_df.etype == '3') & (pbp_df.TeamID == str(team_id))]))*.4
+    team_ftm = int(len(pbp_df[(pbp_df.etype == '3') & (pbp_df.opt1 == '1') & (pbp_df.TeamID == str(team_id))]))
+    team_off_rbs = len(pbp_df[((pbp_df.opt1 != '0') & (pbp_df.etype == '4')) & (pbp_df.TeamID == str(team_id)) & (pbp_df.PlayerID != '0')])
+    opp_drbs = len(pbp_df[((pbp_df.opt1 != '1') & (pbp_df.etype == '4')) & (pbp_df.TeamID != str(team_id)) & (pbp_df.PlayerID != '0')])
+    team_drbs = len(pbp_df[((pbp_df.opt1 == '0') & (pbp_df.etype == '4')) & (pbp_df.TeamID == str(team_id)) & (pbp_df.PlayerID != '0')])
+    possessions = team_fgas+team_fts-(1.07*(team_off_rbs/(team_off_rbs+opp_drbs))*(team_fgas-team_fgs))+team_turnovers
+    TO_perc = team_turnovers/possessions
+    if team_ftm != 0:
+        ft_fga_perc = round(team_ftm/team_fgas,3)
+    else:
+        ft_fga_perc = 0.0
+    if team_3pts != 0:
+        efg_perc = ((team_3pts*.5)+(team_fgs))/team_fgas
+    else:
+        efg_perc = 0.0
+    orb_perc = round(team_off_rbs/(team_off_rbs+opp_drbs),3)
+    summary_text = ['teamID','Possessions', 'EFGr', 'TOr', 'ORBr', 'FT_FGAr', 'FGsA', 'FGsM',
+                    '3PTsM', 'TOs', 'FTsA','FTsM','ORBs','DRBs']
+    summary_data = [team_id, round(possessions,3), round(efg_perc,3),round(TO_perc,3), orb_perc,ft_fga_perc, team_fgas, team_fgs, team_3pts, team_turnovers, team_fts,
+                    team_ftm, team_off_rbs, team_drbs]
+    summary_df = pd.DataFrame(data=np.array(summary_data,dtype=str).reshape(1,14), columns=summary_text)
+    return(summary_df)
     
-def CalcPerf(new_pbp_df, home_team, away_team):
+def CalcPerf(pbp_df, home_team, away_team):
     performance_list = []
     quarter = 0
     sub_count = 0
-    for i in range(len(new_pbp_df)):
-        row = new_pbp_df.iloc[i]
-        if i < len(new_pbp_df)-1:
-            next_row = new_pbp_df.iloc[i+1]
+    spread_pass = 0
+    for i in range(len(pbp_df)):
+        row = pbp_df.iloc[i]
+        if i < len(pbp_df)-1:
+            next_row = pbp_df.iloc[i+1]
         home_score = int(row[home_team])
         away_score = int(row[away_team])
         spread = int(home_score-away_score)
@@ -310,84 +391,5 @@ def CalcPerf(new_pbp_df, home_team, away_team):
             performance_list.append("")
             
     performance_df = pd.Series(performance_list,name="Performance")
-    final_pbp_df = pd.concat([new_pbp_df, performance_df],axis=1)
+    final_pbp_df = pd.concat([pbp_df, performance_df],axis=1)
     return(final_pbp_df)
-
-def BoxScore(pbp_df, game_id, home_team, away_team):
-    
-    # BOX SCORE CODE
-    
-    # Iterate through DataFrame to determine points scored by quarter
-    quarter = 1
-    away_score = []
-    home_score = []
-    for i in range(len(pbp_df)):
-        row = pbp_df.iloc[i]
-        if row['etype'] == '12':
-            if quarter == 1:
-                print(home_team + ' vs ' + away_team)
-        if row['etype'] == '13':
-            if quarter == 1:
-                away_scored = int(row[away_team])-np.sum(np.array(away_score,dtype=int))
-                home_scored = int(row[home_team])-np.sum(np.array(home_score,dtype=int))
-                away_score.append(away_scored)
-                home_score.append(home_scored)
-            
-            if quarter != 1:
-                away_scored = int(row[away_team])-np.sum(np.array(away_score,dtype=int))
-                home_scored = int(row[home_team])-np.sum(np.array(home_score,dtype=int))
-                away_score.append(away_scored)
-                home_score.append(home_scored)
-            quarter +=1
-        if row['Description'] == 'Game End':
-            if np.sum(home_score) > np.sum(away_score):
-                print(home_team+' wins ' + str(np.sum(home_score)) + ' to ' + str(np.sum(away_score)))
-            if np.sum(away_score) > np.sum(home_score):
-                print(away_team+' wins ' + str(np.sum(away_score)) + ' to ' + str(np.sum(home_score)))
-    
-    #Create a box score from parsed data and normalize scoring to determine percentiles
-    
-    box_score = np.array([away_score,home_score],dtype=int)
-    
-    loc = np.mean(box_score)
-    scale = np.std(box_score)
-    
-    away_percentile = round(stats.norm.cdf(np.mean(box_score[0]),loc,scale),3)
-    home_percentile = round(stats.norm.cdf(np.mean(box_score[1]),loc,scale),3)
-    
-    print(home_team,round(home_percentile,3))
-    print(away_team,round(away_percentile,3))
-    
-    # Create a new unweighted graph and add boxscore details from PBP data
-    
-    NBA = nx.Graph()
-    
-    NBA.add_edge(home_team,away_team,boxscore=box_score,h_mu=home_percentile,
-                 a_mu=away_percentile,gameid=game_id[1])
-    
-    columns=['Team','Opp','Location','Q1','Q2','Q3','Q4','mu','std']
-    
-    box_score_df = pd.DataFrame(columns=columns)
-    
-    for x in list(NBA.edges(data=True)):
-        h_mu = NBA[x[0]][x[1]]['a_mu']
-        a_mu = NBA[x[0]][x[1]]['h_mu']
-        score_mu = round(np.mean(NBA[x[0]][x[1]]['boxscore']),3)
-        score_std = round(np.std(NBA[x[0]][x[1]]['boxscore']),3)
-        print(score_mu,score_std)
-        print('----------------')
-        h_entry = [x[0],x[1],'Home',
-                   NBA[x[0]][x[1]]['boxscore'][0][0],NBA[x[0]][x[1]]['boxscore'][0][1],
-                   NBA[x[0]][x[1]]['boxscore'][0][2],NBA[x[0]][x[1]]['boxscore'][0][3],
-                   h_mu,score_std]
-        
-        a_entry = [x[1],x[0],'Away',
-                   NBA[x[0]][x[1]]['boxscore'][1][0],NBA[x[0]][x[1]]['boxscore'][1][1],
-                   NBA[x[0]][x[1]]['boxscore'][1][2],NBA[x[0]][x[1]]['boxscore'][1][3],
-                   a_mu,score_std]
-        entry = pd.DataFrame([h_entry,a_entry],columns=columns)
-        box_score_df = pd.concat([box_score_df,entry],axis=0)
-    
-    box_score_df = box_score_df.reset_index(drop=True)
-    
-    return(box_score_df, NBA)
