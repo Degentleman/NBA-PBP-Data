@@ -9,7 +9,6 @@ import NBAPBPReader as Reader
 import NBAadvsyn as NSA
 import pandas as pd
 from BoxScores import BoxScore
-from RunModel import NBAmodel
 
 game_id = '0021800164'
 season = '2018'
