@@ -5,8 +5,7 @@ Created on Fri Apr 20 16:20:00 2018
 
 @author: Degentleman
 """
-import networkx as nx
-import NBAadvsyn as NSA
+import NSAmodel as NSA
 from NBAmodel import NBAmodel
 import NBAPBPReader as Reader
 import pandas as pd
@@ -27,10 +26,6 @@ new_pbp_df = pd.concat([pbp_df,in_out_df], axis=1)
 final_pbp = Reader.CalcPerf(new_pbp_df, home_team, away_team)
 pbp_perf = final_pbp[(final_pbp.Performance != '') & (final_pbp.etype != '8')].reset_index(drop=True,inplace=False)
 file_name = pbp_file_name[0:8]+' Lineups '+pbp_file_name[-12:]
-final_pbp.to_csv(file_name,index=False)
-
-#Optional print confirmation
-print(file_name)
 
 # This includes players who are on the team's roster, not just who played.
 home_roster = NBA_Legend[(NBA_Legend.Team == home_team)]
@@ -40,20 +35,8 @@ away_roster = NBA_Legend[(NBA_Legend.Team == away_team)]
 lineup_df = NSA.lineups(pbp_perf)
 team_Ai, team_Aj = NSA.team_sort(lineup_df)
 
-#Create a unweighted graph using PBP data and team rosters.
-Graph_Data = nx.Graph()
-graph_nodes_df = pd.concat([home_roster,away_roster],axis=0).set_index('PlayerID',drop=True)
-for i in range(len(graph_nodes_df)):
-    row = graph_nodes_df.iloc[i]
-    team = row.Team
-    playerID = row.name
-    player = row.Player
-    position = row.Position
-    Graph_Data.add_node(playerID, Player=player, Team=team, Pos=position)
-    
-iterations = 50
+iterations = 100
 #Simulate different graphs to determine optimal structure using performance.
 G_Alpha, model_predictions_df, Agent_Cap_DF, Alpha_Model, explored_structures = NBAmodel(lineup_df, team_Ai, team_Aj, home_team, away_team, iterations)
 Ai_matrix_df = NSA.LineupSyn(G_Alpha,lineup_df)
-Adv_Syn_Spread = NSA.ProjSpread(G_Alpha, home_starters, away_starters, home_team, away_team)
-Graph_Data.add_nodes_from(G_Alpha.nodes(data=True))
+syn_df, adv_syn_df, Adv_Syn_Spread, Adv_Syn_Spread_mu = NSA.ProjSpread(G_Alpha, home_starters, away_starters, home_team, away_team)
