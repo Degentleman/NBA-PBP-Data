@@ -5,64 +5,55 @@ Created on Fri Apr 20 16:20:00 2018
 
 @author: Degentleman
 """
+import networkx as nx
 import NBAadvsyn as NSA
+from NBAmodel import NBAmodel
+import NBAPBPReader as Reader
+import pandas as pd
 
-def NBAmodel(lineup_df, team_Ai, team_Aj, iteration_limit):
+NBA_Legend = pd.read_csv('NBA_Player_DB.csv', delimiter = ',')    
+known_players = NBA_Legend[['PlayerID','Player']]
 
-    D_Train, player_value = NSA.LearnCap(lineup_df)
-    G_Alpha, alpha_player_value = NSA.SimGraph(D_Train, lineup_df)
-    alpha_performance, a_predictions_df = NSA.MeasureError(G_Alpha, lineup_df)
-    trials = 0
-    stop_count = 0
-    alpha_spreads = []
-    beta_spreads = []
-    explored_structures = []
-    while stop_count < iteration_limit:
-        
-        if alpha_performance > 0:
-            
-            explored_structures.append(list(G_Alpha.edges))
-            
-            #Create a new Graph Structure
-            
-            G_Beta, beta_player_value = NSA.SimGraph(D_Train, lineup_df)
-            
-            if list(G_Beta.edges) in explored_structures:
-                print('Identical structure randomly generated...generating a new graph')
-                G_Beta, beta_player_value = NSA.SimGraph(D_Train, lineup_df)
-            
-            beta_performance, b_predictions_df = NSA.MeasureError(G_Beta, lineup_df)
-            
-            # Run K-weighted Adversarial Synergy Projection
-            
-            beta_proj_spread = round(NSA.ProjSpread(G_Beta,team_Ai,team_Aj),2)
-            beta_spreads.append(beta_proj_spread)
-            
-            explored_structures.append(list(G_Beta.edges))
-            
-            trials +=1
-            
-            if round(beta_performance,5) < round(alpha_performance,5):
-                
-                print('Alpha Performance: ' + str(round(alpha_performance,4))+' Beta Performance: ' + str(round(beta_performance,3)))                
-                print('Beta Graph changed to Alpha Graph on trial #' + str(trials))
-                
-                #Copy Beta information to Alpha model
-                G_Alpha = G_Beta
-                alpha_player_value = beta_player_value
-                a_predictions_df = b_predictions_df
-                
-                # Run K-weighted Adversarial Synergy Projection
-                
-                alpha_proj_spread = round(NSA.ProjSpread(G_Alpha,team_Ai,team_Aj),2)
-                alpha_spreads.append(round(alpha_proj_spread,2))
-                
-                alpha_performance = beta_performance
-                stop_count = 0
-            else:
-                # Count increased if better structure isn't found
-                stop_count +=1
-            
-    print(str(iterations)+' structures generated without improvement...terminating')
+game_id = '0021800952'
+season = '2018'
+
+# Parse PBP Data and Create Lineup DataFrame
+pbp_df, pbpsumdf, pbp_file_name, home_team, away_team = Reader.PBP_Read(game_id, season)
+players_df, df_cols = Reader.PBP_team_sort(pbp_df)
+in_out_df, starters, bench = Reader.StatusCheck(pbp_df, df_cols, players_df)
+home_starters = starters[0:5]
+away_starters = starters[5:10]
+new_pbp_df = pd.concat([pbp_df,in_out_df], axis=1)
+final_pbp = Reader.CalcPerf(new_pbp_df, home_team, away_team)
+pbp_perf = final_pbp[(final_pbp.Performance != '') & (final_pbp.etype != '8')].reset_index(drop=True,inplace=False)
+file_name = pbp_file_name[0:8]+' Lineups '+pbp_file_name[-12:]
+final_pbp.to_csv(file_name,index=False)
+
+#Optional print confirmation
+print(file_name)
+
+# This includes players who are on the team's roster, not just who played.
+home_roster = NBA_Legend[(NBA_Legend.Team == home_team)]
+away_roster = NBA_Legend[(NBA_Legend.Team == away_team)]
+
+# This only includes players who were found by the PBP script.
+lineup_df = NSA.lineups(pbp_perf)
+team_Ai, team_Aj = NSA.team_sort(lineup_df)
+
+#Create a unweighted graph using PBP data and team rosters.
+Graph_Data = nx.Graph()
+graph_nodes_df = pd.concat([home_roster,away_roster],axis=0).set_index('PlayerID',drop=True)
+for i in range(len(graph_nodes_df)):
+    row = graph_nodes_df.iloc[i]
+    team = row.Team
+    playerID = row.name
+    player = row.Player
+    position = row.Position
+    Graph_Data.add_node(playerID, Player=player, Team=team, Pos=position)
     
-    return(G_Alpha,a_predictions_df, alpha_player_value,alpha_spreads,beta_spreads)
+iterations = 50
+#Simulate different graphs to determine optimal structure using performance.
+G_Alpha, model_predictions_df, Agent_Cap_DF, Alpha_Model, explored_structures = NBAmodel(lineup_df, team_Ai, team_Aj, home_team, away_team, iterations)
+Ai_matrix_df = NSA.LineupSyn(G_Alpha,lineup_df)
+Adv_Syn_Spread = NSA.ProjSpread(G_Alpha, home_starters, away_starters, home_team, away_team)
+Graph_Data.add_nodes_from(G_Alpha.nodes(data=True))
