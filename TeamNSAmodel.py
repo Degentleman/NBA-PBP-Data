@@ -11,9 +11,9 @@ import numpy as np
 from itertools import combinations
 import statsmodels.api as sm
 from NBA_Player_DB import GetDB
-Team_Legend = pd.read_csv('/Users/devinpower-bearden/AnacondaProjects/NBA/Synergy Project Files/NBA PBP - Team Legend.csv', delimiter = ',')   
+Team_Legend = pd.read_csv('NBA PBP - Team Legend.csv', delimiter = ',')   
 
-NBA_Legend = pd.read_csv('/Users/devinpower-bearden/AnacondaProjects/NBA/Synergy Project Files/NBA Player DF - 2019.csv', delimiter = ',')   
+NBA_Legend = pd.read_csv('NBA Player DF - 2019.csv', delimiter = ',')   
 
 # Common path functions:
 path = nx.dijkstra_path
