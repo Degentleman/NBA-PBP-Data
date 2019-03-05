@@ -6,32 +6,6 @@ Created on Wed Oct 24 19:21:23 2018
 @author: Degentleman
 """
 import NSAmodel as NSA
-import pandas as pd
-
-def Merge(lineup_df):
-    merged_lineup_list = []
-    
-    for i in range(len(lineup_df)):
-        row = lineup_df.iloc[i]
-        Ai1 = lineup_df.iloc[i]['Team(Ai1)']
-        Ai2 = lineup_df.iloc[i]['Team(Ai2)']
-        Ai3 = lineup_df.iloc[i]['Team(Ai3)']
-        Ai4 = lineup_df.iloc[i]['Team(Ai4)']
-        Ai5 = lineup_df.iloc[i]['Team(Ai5)']
-        Aj1 = lineup_df.iloc[i]['Team(Aj1)']
-        Aj2 = lineup_df.iloc[i]['Team(Aj2)']
-        Aj3 = lineup_df.iloc[i]['Team(Aj3)']
-        Aj4 = lineup_df.iloc[i]['Team(Aj4)']
-        Aj5 = lineup_df.iloc[i]['Team(Aj5)']
-        Ai_lineup = Ai1+Ai2+Ai3+Ai4+Ai5
-        Aj_lineup = Aj1+Aj2+Aj3+Aj4+Aj5
-        Performance= row['Performance']
-        entry = [Ai_lineup,Aj_lineup,Performance]
-        merged_lineup_list.append(entry)
-        
-    merged_lineup_df = pd.DataFrame(data=merged_lineup_list,columns=['Ai Lineup','Aj Lineup','Performance'])
-    
-    return(merged_lineup_df)
 
 def NBAmodel(lineup_df, team_Ai, team_Aj, home_team, away_team, iterations):
     D_Train, player_value = NSA.LearnCap(lineup_df)
@@ -45,11 +19,8 @@ def NBAmodel(lineup_df, team_Ai, team_Aj, home_team, away_team, iterations):
     while stop_count < iterations:
         
         if alpha_performance > 1:
-            
-            
-            
-            #Create a new Graph Structure
-            
+        
+            #Create a new Graph Structure    
             G_Beta, Agent_Cap_DF_Beta, Beta_Model = NSA.SimGraph(D_Train, lineup_df)
             
             caveat = list(G_Beta.edges(data=True)) in explored_structures
