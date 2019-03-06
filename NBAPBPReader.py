@@ -9,11 +9,10 @@ import requests
 import json
 import pandas as pd
 import numpy as np
+from NBA_Player_DB import GetDB
 
 NBA_Legend = pd.read_csv('NBA Player DF - 2019.csv', delimiter = ',')   
-
 Team_Legend = pd.read_csv('NBA PBP - Team Legend.csv', delimiter = ',')
-    
 keys = list(NBA_Legend.PlayerID)
 
 def PBP_Read(game_id,season):
@@ -35,7 +34,12 @@ def PBP_Read(game_id,season):
     year = list(data[access_key].items())[2][1][0:4]
     away_team = list(data[access_key].items())[2][1][-6:-3]
     home_team = list(data[access_key].items())[2][1][-3:]
-    
+    home_id = Team_Legend[(Team_Legend.Code == home_team)].TeamID.iloc[0]
+    away_id = Team_Legend[(Team_Legend.Code == away_team)].TeamID.iloc[0]
+    home_team_name, home_team, home_team_df, home_coach_df, home_df = GetDB(home_id)
+    away_team_name, away_team, away_team_df, away_coach_df, away_df = GetDB(away_id)
+    current_rosters = pd.concat([home_df,away_df],axis=0, ignore_index=True)
+    roster_keys = list(current_rosters.PlayerID)
     pbp_json = data['g']['pd']
     
     # Convert JSON data to DataFrame using for loop
@@ -73,40 +77,72 @@ def PBP_Read(game_id,season):
     for i in range(len(pbp)):
         row = pbp.iloc[i]
         if row.etype == '8':
-            if int(row.PlayerID) in keys:
-                subbed_out = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.PlayerID))]['Player'])[0]
+            sub_out = int(row.PlayerID)
+            sub_in = int(row.epid)
+            
+            if sub_out in keys:
+                subbed_out = list(NBA_Legend[(NBA_Legend.PlayerID == sub_out)]['Player'])[0]
+            if sub_out not in keys and sub_out in roster_keys:
+                subbed_out = list(current_rosters[(current_rosters.PlayerID == sub_out)]['Player'])[0]
+            if sub_in in keys:
+                subbed_in = list(NBA_Legend[(NBA_Legend.PlayerID == sub_in)]['Player'])[0]
+            elif sub_in not in keys:
+                subbed_in = list(current_rosters[(current_rosters.PlayerID == sub_in)]['Player'])[0]
             else:
-                subbed_out = row.PlayerID
-            if int(row.epid) in keys:
-                subbed_in = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.epid))]['Player'])[0]
-            else:
-                subbed_in = row.epid
+                subbed_in = str(sub_in)
+                subbed_out = str(sub_out)
             player_one.append(subbed_in)
             player_two.append(subbed_out)
-        elif row.etype in etype_list and row.PlayerID != '0' and int(row.PlayerID) in keys:
-            player_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.PlayerID))]['Player'])[0]
-            player_one.append(player_name)
+        elif row.etype in etype_list and row.PlayerID != '0':
+            #Find player's name using pbp ID
+            playerID = int(row.PlayerID)
+            if playerID in keys:
+                players_name = list(NBA_Legend[(NBA_Legend.PlayerID == playerID)]['Player'])[0]
+            if playerID not in keys and playerID in roster_keys:
+                players_name = list(current_rosters[(current_rosters.PlayerID == playerID)]['Player'])[0]
+            
+            #Player's name should be known at this point.
             if row.etype == '1' and row.epid != '':
-                player_two_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.epid))]['Player'])[0]
-                player_two.append(player_two_name)
-            elif row.etype == '5' and 3 < len(row.opid) <10:
-                player_two_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.opid))]['Player'])[0]
-                player_two.append(player_two_name)
+                player_one_name = players_name
+                player_one.append(player_one_name)
+                if int(row.epid) in keys:
+                    player_two_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.epid))]['Player'])[0]
+                    player_two.append(player_two_name)
+                if int(row.epid) not in keys and int(row.epid) in roster_keys:
+                    player_two_name = list(current_rosters[(current_rosters.PlayerID == int(row.epid))]['Player'])[0]
+                    player_two.append(player_two_name)
+                #Assist from one to two
+            elif row.etype == '5':
+                if row.opid == '':
+                    player_one.append(players_name)
+                    player_two.append('')
+                    #Turnover by player one
+                if 3 < len(row.opid) <10:
+                    player_one.append(players_name)
+                    if int(row.opid) in keys:
+                        player_two_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.opid))]['Player'])[0]
+                        player_two.append(player_two_name)
+                    if int(row.opid) not in keys and int(row.opid) in roster_keys:
+                        player_two_name = list(current_rosters[(current_rosters.PlayerID == int(row.opid))]['Player'])[0]
+                        player_two.append(player_two_name)
+                    #Turnover by player one and steal by player two
             elif row.etype == '6' and 3 < len(row.opid) <10:
+                player_one.append(players_name)
                 player_two_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.opid))]['Player'])[0]
                 player_two.append(player_two_name)
             elif row.etype == '10' and 3 < len(row.opid) < 10:
+                player_one.append(players_name)
                 player_two_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.opid))]['Player'])[0]
                 player_two.append(player_two_name)
             else:
+                player_one.append(players_name)
                 player_two.append('')
         else:
             player_one.append('')
             player_two.append('')
-    player_one = pd.Series(data=player_one,name='Player One')
-    player_two = pd.Series(data=player_two,name='Player Two')
-    
-    pbp_df = pd.concat([pbp,player_one,player_two],axis=1)
+    player_one = pd.Series(data=player_one, name='Player One')
+    player_two = pd.Series(data=player_two, name='Player Two')
+    pbp_df = pd.concat([pbp,player_one,player_two],axis=1, ignore_index=False)
     shots_made = len(pbp_df[(pbp_df.etype == '1')])
     shots_missed = len(pbp_df[(pbp_df.etype == '2')])
     fts_shot = len(pbp_df[(pbp_df.etype == '3')])
@@ -122,10 +158,11 @@ def PBP_Read(game_id,season):
     sum_columns = ['Shots Made', 'Shots Missed', 'FTs', 'FTAs',
                    'Rebounds', 'Turnovers', 'Fouls', 'Subs', 'Timeouts']
     pbpsumdf = pd.DataFrame(data=game_summary, columns=sum_columns)
+    #pbp_df = pbp_df.replace(np.nan, '', regex=True)
     return (pbp_df, pbpsumdf, filename, home_team, away_team)
 
-def PBP_team_sort(pbp_df, home_team, away_team):
-
+def PBP_team_sort(pbp_df):
+    home_team, away_team = list(pbp_df)[12:14]
     player_one_list = [x for x in list(pbp_df['Player One']) if x != '' and x!= 'None']
     player_two_list = [x for x in list(pbp_df['Player Two']) if x != '' and x!= 'None']
     player_list = list(np.unique(player_one_list+player_two_list))
@@ -174,17 +211,13 @@ def PBP_team_sort(pbp_df, home_team, away_team):
                 Ai_df = pd.concat([Ai_df,entry_df],axis=0,ignore_index=True)
             if team == away_team:    
                 Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
-                
+            
     Ai_df = Ai_df.set_index('Team')
     Aj_df = Aj_df.set_index('Team')
-    
     players_df = pd.concat([Ai_df,Aj_df], axis=0)
-    
     home_cols = sorted(list(players_df.loc[home_team]['Player']))
     away_cols = sorted(list(players_df.loc[away_team]['Player']))
-    
     df_cols = home_cols+away_cols
-    
     return (players_df, df_cols)
 
 def StatusCheck(pbp_df, df_cols, players_df):
@@ -333,12 +366,12 @@ def CalcPoss(pbp_df, team_id):
     team_fgs = len( pbp_df[(pbp_df.TeamID == str(team_id)) & (pbp_df.etype == '2')])
     team_3pts = len(pbp_df[(pbp_df.TeamID == str(team_id)) & (pbp_df.opt1 == '3') & (pbp_df.etype == '1')])
     team_turnovers = len(pbp_df[(pbp_df.etype == '5') & (pbp_df.TeamID == str(team_id))])
-    team_fts = int(len(pbp_df[(pbp_df.etype == '3') & (pbp_df.TeamID == str(team_id))]))*.4
-    team_ftm = int(len(pbp_df[(pbp_df.etype == '3') & (pbp_df.opt1 == '1') & (pbp_df.TeamID == str(team_id))]))
+    team_fta = len(pbp_df[(pbp_df.etype == '3') & (pbp_df.TeamID == str(team_id))])
+    team_ftm = len(pbp_df[(pbp_df.etype == '3') & (pbp_df.opt1 == '1') & (pbp_df.TeamID == str(team_id))])
     team_off_rbs = len(pbp_df[((pbp_df.opt1 != '0') & (pbp_df.etype == '4')) & (pbp_df.TeamID == str(team_id)) & (pbp_df.PlayerID != '0')])
     opp_drbs = len(pbp_df[((pbp_df.opt1 != '1') & (pbp_df.etype == '4')) & (pbp_df.TeamID != str(team_id)) & (pbp_df.PlayerID != '0')])
     team_drbs = len(pbp_df[((pbp_df.opt1 == '0') & (pbp_df.etype == '4')) & (pbp_df.TeamID == str(team_id)) & (pbp_df.PlayerID != '0')])
-    possessions = team_fgas+team_fts-(1.07*(team_off_rbs/(team_off_rbs+opp_drbs))*(team_fgas-team_fgs))+team_turnovers
+    possessions = team_fgas+(team_fta*.4)-(1.07*(team_off_rbs/(team_off_rbs+opp_drbs))*(team_fgas-team_fgs))+team_turnovers
     TO_perc = team_turnovers/possessions
     if team_ftm != 0:
         ft_fga_perc = round(team_ftm/team_fgas,3)
@@ -351,7 +384,7 @@ def CalcPoss(pbp_df, team_id):
     orb_perc = round(team_off_rbs/(team_off_rbs+opp_drbs),3)
     summary_text = ['teamID','Possessions', 'EFGr', 'TOr', 'ORBr', 'FT_FGAr', 'FGsA', 'FGsM',
                     '3PTsM', 'TOs', 'FTsA','FTsM','ORBs','DRBs']
-    summary_data = [team_id, round(possessions,3), round(efg_perc,3),round(TO_perc,3), orb_perc,ft_fga_perc, team_fgas, team_fgs, team_3pts, team_turnovers, team_fts,
+    summary_data = [team_id, round(possessions,3), round(efg_perc,3),round(TO_perc,3), orb_perc,ft_fga_perc, team_fgas, team_fgs, team_3pts, team_turnovers, team_fta,
                     team_ftm, team_off_rbs, team_drbs]
     summary_df = pd.DataFrame(data=np.array(summary_data,dtype=str).reshape(1,14), columns=summary_text)
     return(summary_df)
