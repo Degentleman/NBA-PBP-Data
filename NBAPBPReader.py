@@ -11,14 +11,14 @@ import pandas as pd
 import numpy as np
 from NBA_Player_DB import GetDB
 
-NBA_Legend = pd.read_csv('NBA Player DF - 2019.csv', delimiter = ',')   
+NBA_Legend = pd.read_csv('NBA Player DF - 2019.csv', delimiter = ',')
 Team_Legend = pd.read_csv('NBA PBP - Team Legend.csv', delimiter = ',')
 keys = list(NBA_Legend.PlayerID)
 
 def PBP_Read(game_id,season):
 
     # Specify which Game ID you need the Play-by-Play (PBP) Data For Below in url_id
-    
+
     url_id = game_id
     season_id = season
     url = 'https://data.nba.com/data/v2015/json/mobile_teams/nba/{season}/scores/pbp/{urlid}_full_pbp.json'.format(urlid=url_id,season=season_id)
@@ -79,14 +79,13 @@ def PBP_Read(game_id,season):
         if row.etype == '8':
             sub_out = int(row.PlayerID)
             sub_in = int(row.epid)
-            
             if sub_out in keys:
                 subbed_out = list(NBA_Legend[(NBA_Legend.PlayerID == sub_out)]['Player'])[0]
-            if sub_out not in keys and sub_out in roster_keys:
+            elif sub_out not in keys and sub_out in roster_keys:
                 subbed_out = list(current_rosters[(current_rosters.PlayerID == sub_out)]['Player'])[0]
             if sub_in in keys:
                 subbed_in = list(NBA_Legend[(NBA_Legend.PlayerID == sub_in)]['Player'])[0]
-            elif sub_in not in keys:
+            elif sub_in not in keys and sub_in in roster_keys:
                 subbed_in = list(current_rosters[(current_rosters.PlayerID == sub_in)]['Player'])[0]
             else:
                 subbed_in = str(sub_in)
@@ -103,8 +102,7 @@ def PBP_Read(game_id,season):
             
             #Player's name should be known at this point.
             if row.etype == '1' and row.epid != '':
-                player_one_name = players_name
-                player_one.append(player_one_name)
+                player_one.append(players_name)
                 if int(row.epid) in keys:
                     player_two_name = list(NBA_Legend[(NBA_Legend.PlayerID == int(row.epid))]['Player'])[0]
                     player_two.append(player_two_name)
@@ -158,26 +156,37 @@ def PBP_Read(game_id,season):
     sum_columns = ['Shots Made', 'Shots Missed', 'FTs', 'FTAs',
                    'Rebounds', 'Turnovers', 'Fouls', 'Subs', 'Timeouts']
     pbpsumdf = pd.DataFrame(data=game_summary, columns=sum_columns)
-    #pbp_df = pbp_df.replace(np.nan, '', regex=True)
+    pbp_df = pbp_df.replace(np.nan, '', regex=True)
     return (pbp_df, pbpsumdf, filename, home_team, away_team)
 
 def PBP_team_sort(pbp_df):
     home_team, away_team = list(pbp_df)[12:14]
+    home_id = Team_Legend[(Team_Legend.Code == home_team)].TeamID.iloc[0]
+    away_id = Team_Legend[(Team_Legend.Code == away_team)].TeamID.iloc[0]
+    home_team_name, home_team, home_team_df, home_coach_df, home_df = GetDB(home_id)
+    away_team_name, away_team, away_team_df, away_coach_df, away_df = GetDB(away_id)
+    current_rosters = pd.concat([home_df,away_df],axis=0, ignore_index=True)
     player_one_list = [x for x in list(pbp_df['Player One']) if x != '' and x!= 'None']
     player_two_list = [x for x in list(pbp_df['Player Two']) if x != '' and x!= 'None']
     player_list = list(np.unique(player_one_list+player_two_list))
-    
     Ai_df = pd.DataFrame()
     Aj_df = pd.DataFrame()
     for player in player_list:
-        if player in list(NBA_Legend.Player):
+        if player not in list(NBA_Legend.Player):
+            if player in list(current_rosters.Player):
+                p_id = current_rosters[(current_rosters.Player == player)].PlayerID.values[0]
+                team = current_rosters[(current_rosters.Player == player)].Team.values[0]
+                if team == home_team:
+                    entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
+                    entry_df = pd.DataFrame(data=entry,columns=['Team','Player','PlayerID'])
+                    Ai_df = pd.concat([Ai_df,entry_df],axis=0,ignore_index=True)
+                if team == away_team:
+                    entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
+                    entry_df = pd.DataFrame(data=entry, columns=['Team','Player','PlayerID'])
+                    Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
+        elif player in list(NBA_Legend.Player):
             team = list(NBA_Legend[(NBA_Legend.Player == player)].Team)[0]
             p_id = list(NBA_Legend[(NBA_Legend.Player == player)].PlayerID)[0]
-            if team != home_team and team != away_team:
-                print('According to your database, '+ player + ' is on '+team+"'s roster,")
-                pbp_home = list(pbp_df)[12]
-                pbp_away = list(pbp_df)[13]
-                team = input('Which team is '+player+' playing for in this game: '+pbp_home+' or '+pbp_away+'? ')
             if team == home_team:
                 entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
                 entry_df = pd.DataFrame(data=entry,columns=['Team','Player','PlayerID'])
@@ -186,32 +195,30 @@ def PBP_team_sort(pbp_df):
                 entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
                 entry_df = pd.DataFrame(data=entry, columns=['Team','Player','PlayerID'])
                 Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
-        if player not in list(NBA_Legend.Player):
-            print('NBA Player #'+player+' is missing from the team database.')
-            if player in list(pbp_df[(pbp_df.etype == '8')]['Player One']):
-                p_id = int(player)
-                p_index = list(pbp_df[(pbp_df.etype == '8')]['Player One']).index(player)
-                sub_row = pbp_df[(pbp_df.etype == '8')].iloc[p_index]
-                team = sub_row.Description[1:4]
-            elif player in list(pbp_df[(pbp_df.etype == '8')]['Player Two']):
-                p_id = int(player)
-                p_index = list(pbp_df[(pbp_df.etype == '8')]['Player Two']).index(player)
-                sub_row = pbp_df[(pbp_df.etype == '8')].iloc[p_index]
-                team = sub_row.Description[1:4]
-            else:
-                print('NBA Player #'+player+' is missing from the team database.')
+            if team != home_team and team != away_team:
+                print('According to your database, '+ player + ' is on '+team+"'s roster,")
                 pbp_home = list(pbp_df)[12]
                 pbp_away = list(pbp_df)[13]
-                team = input('Which team are they on? '+pbp_home+' or '+pbp_away+' ')
-                p_id = int(player)
+                team = input('Which team is '+player+' playing for in this game: '+pbp_home+' or '+pbp_away+'? ')
+                entry = pd.Series(data=[team, player,p_id]).values.reshape(1,3)
+                entry_df = pd.DataFrame(data=entry, columns=['Team','Player','PlayerID'])
+                if team == home_team:    
+                    Ai_df = pd.concat([Ai_df,entry_df],axis=0,ignore_index=True)
+                if team == away_team:    
+                    Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
+        else:
+            print('NBA Player #'+player+' is missing from the team database.')
+            pbp_home = list(pbp_df)[12]
+            pbp_away = list(pbp_df)[13]
+            team = input('Which team are they on? '+pbp_home+' or '+pbp_away+' ')
+            p_id = int(player)
             player_name = input('Please input the correct name for this player ')
-            entry = pd.Series(data=[team, player_name,p_id]).values.reshape(1,3)
+            entry = pd.Series(data=[team, player_name, p_id]).values.reshape(1,3)
             entry_df = pd.DataFrame(data=entry,columns=['Team','Player','PlayerID'])
             if team == home_team:    
                 Ai_df = pd.concat([Ai_df,entry_df],axis=0,ignore_index=True)
             if team == away_team:    
                 Aj_df = pd.concat([Aj_df,entry_df],axis=0,ignore_index=True)
-            
     Ai_df = Ai_df.set_index('Team')
     Aj_df = Aj_df.set_index('Team')
     players_df = pd.concat([Ai_df,Aj_df], axis=0)
