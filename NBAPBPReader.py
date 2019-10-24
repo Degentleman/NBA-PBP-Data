@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from NBA_Player_DB import GetDB
 
-NBA_Legend = pd.read_csv('NBA Player DF - 2019.csv', delimiter = ',')
+NBA_Legend = pd.read_csv('NBA Player DF - 2018-19 Season.csv', delimiter = ',')
 Team_Legend = pd.read_csv('NBA PBP - Team Legend.csv', delimiter = ',')
 keys = list(NBA_Legend.PlayerID)
 
