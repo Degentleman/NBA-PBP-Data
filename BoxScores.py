@@ -19,7 +19,7 @@ def GetIDs(team):
     team_mapping = {teamID:team_code}
     
     # HOME URL to SCRAPE
-    team_url = 'https://stats.nba.com/stats/teamgamelog?DateFrom=&DateTo=&LeagueID=00&Season=2018-19&SeasonType=Regular+Season&TeamID={team}'.format(team=str(teamID))
+    team_url = 'https://stats.nba.com/stats/teamgamelog?DateFrom=&DateTo=&LeagueID=00&Season=2019-20&SeasonType=Regular+Season&TeamID={team}'.format(team=str(teamID))
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}
     response = requests.get(team_url, headers = headers)
     team_data = json.loads(response.content.decode())
