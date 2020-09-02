@@ -20,7 +20,17 @@ def GetIDs(team):
     
     # HOME URL to SCRAPE
     team_url = 'https://stats.nba.com/stats/teamgamelog?DateFrom=&DateTo=&LeagueID=00&Season=2019-20&SeasonType=Regular+Season&TeamID={team}'.format(team=str(teamID))
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}
+    headers = {
+    'Host': 'stats.nba.com',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://stats.nba.com/',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'x-nba-stats-origin': 'stats',
+    'x-nba-stats-token': 'true'
+    } 
     response = requests.get(team_url, headers = headers)
     team_data = json.loads(response.content.decode())
     
@@ -32,7 +42,7 @@ def GetIDs(team):
     team_df = pd.DataFrame(data=parsed_data, columns=team_headers)
     team_df = team_df.replace({'Team_ID': team_mapping})
     team_game_ids = list(team_df.Game_ID)
-    return (team_game_ids, teamID)
+    return (team_df, team_game_ids, teamID)
 
 def BoxScore(pbp_df):
     home_team = list(pbp_df)[12]
